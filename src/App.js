@@ -11,12 +11,14 @@ const AssignmentScheduler = () => {
   const [bulkNames, setBulkNames] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
   const [vidaMinisterio2Weeks, setVidaMinisterio2Weeks] = useState({});
-  const [activeTab, setActiveTab] = useState('general'); // 'general' or 'matriculados'
+  const [activeTab, setActiveTab] = useState('programa'); // 'programa', 'nombrados', or 'matriculados'
 
   const [matriculados, setMatriculados] = useState([]);
   const [newMatriculadoName, setNewMatriculadoName] = useState('');
   const [newMatriculadoGender, setNewMatriculadoGender] = useState('hombre');
   const [matriculadoAssignmentsPerWeek, setMatriculadoAssignmentsPerWeek] = useState(2);
+  const [bulkMatriculadosNames, setBulkMatriculadosNames] = useState('');
+  const [showBulkMatriculadosInput, setShowBulkMatriculadosInput] = useState(false);
   const [matriculadoHistory, setMatriculadoHistory] = useState({});
 
   // Load data from localStorage on component mount
@@ -103,6 +105,26 @@ const AssignmentScheduler = () => {
 
   const deleteMatriculado = (personId) => {
     setMatriculados(matriculados.filter(person => person.id !== personId));
+  };
+
+  const updateMatriculadoGender = (personId, newGender) => {
+    setMatriculados(matriculados.map(person =>
+      person.id === personId ? { ...person, gender: newGender } : person
+    ));
+  };
+
+  const addBulkMatriculados = () => {
+    if (bulkMatriculadosNames.trim()) {
+      const names = bulkMatriculadosNames.split('\n').filter(name => name.trim());
+      const newPeople = names.map(name => ({
+        id: Date.now() + Math.random(),
+        name: name.trim(),
+        gender: 'hombre', // Default gender, user can change it later
+      }));
+      setMatriculados([...matriculados, ...newPeople]);
+      setBulkMatriculadosNames('');
+      setShowBulkMatriculadosInput(false);
+    }
   };
 
   const roles = [
@@ -549,10 +571,16 @@ const AssignmentScheduler = () => {
         {/* Tab switcher */}
         <div className="flex border-b mb-6">
           <button
-            onClick={() => setActiveTab('general')}
-            className={`px-4 py-2 text-lg font-semibold ${activeTab === 'general' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('programa')}
+            className={`px-4 py-2 text-lg font-semibold ${activeTab === 'programa' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
           >
-            General
+            Programa
+          </button>
+          <button
+            onClick={() => setActiveTab('nombrados')}
+            className={`px-4 py-2 text-lg font-semibold ${activeTab === 'nombrados' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+          >
+            Nombrados
           </button>
           <button
             onClick={() => setActiveTab('matriculados')}
@@ -563,11 +591,21 @@ const AssignmentScheduler = () => {
         </div>
 
         {/* Content based on active tab */}
-        {activeTab === 'general' && (
+        {activeTab === 'programa' && (
+          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-center">
+            <h2 className="text-xl font-semibold text-gray-700">Bienvenido al Asignador de Responsabilidades</h2>
+            <p className="text-gray-600 mt-2">
+              Selecciona el mes y el año, luego haz clic en "Generar Asignaciones".<br/>
+              Usa las pestañas "Nombrados" y "Matriculados" para gestionar las listas de personas.
+            </p>
+          </div>
+        )}
+
+        {activeTab === 'nombrados' && (
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-green-600" />
-              <h2 className="text-lg font-semibold">Gestión de Personas (General)</h2>
+              <h2 className="text-lg font-semibold">Gestión de Nombrados</h2>
             </div>
 
             <div className="flex gap-2 mb-4">
@@ -703,20 +741,55 @@ const AssignmentScheduler = () => {
               >
                 <Plus className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => setShowBulkMatriculadosInput(!showBulkMatriculadosInput)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                Agregar Varios
+              </button>
             </div>
+
+            {showBulkMatriculadosInput && (
+              <div className="mb-4">
+                <textarea
+                  placeholder="Escribe un nombre por línea"
+                  value={bulkMatriculadosNames}
+                  onChange={(e) => setBulkMatriculadosNames(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md h-32"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={addBulkMatriculados}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Agregar Todos
+                  </button>
+                  <button
+                    onClick={() => setShowBulkMatriculadosInput(false)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* List of matriculados */}
             <div className="space-y-2">
               {matriculados.map(person => (
                 <div key={person.id} className="bg-white p-3 rounded-lg border flex justify-between items-center">
-                  <div>
-                    <span className="font-semibold">{person.name}</span>
-                    <span className={`text-sm ml-2 px-2 py-0.5 rounded-full ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
-                      {person.gender}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => deleteMatriculado(person.id)}
+                  <span className="font-semibold">{person.name}</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={person.gender}
+                      onChange={(e) => updateMatriculadoGender(person.id, e.target.value)}
+                      className={`border rounded-md py-1 px-2 text-sm ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}
+                    >
+                      <option value="hombre">Hombre</option>
+                      <option value="mujer">Mujer</option>
+                    </select>
+                    <button
+                      onClick={() => deleteMatriculado(person.id)}
                     className="text-red-600 hover:text-red-800"
                     title="Eliminar matriculado"
                   >
