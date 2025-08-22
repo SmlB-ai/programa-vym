@@ -16,9 +16,9 @@ const AssignmentScheduler = () => {
   const [matriculados, setMatriculados] = useState([]);
   const [newMatriculadoName, setNewMatriculadoName] = useState('');
   const [newMatriculadoGender, setNewMatriculadoGender] = useState('hombre');
-  const [matriculadoAssignmentsPerWeek, setMatriculadoAssignmentsPerWeek] = useState(2);
   const [bulkMatriculadosNames, setBulkMatriculadosNames] = useState('');
   const [showBulkMatriculadosInput, setShowBulkMatriculadosInput] = useState(false);
+  const [assignmentsPerWeekConfig, setAssignmentsPerWeekConfig] = useState({});
   const [matriculadoHistory, setMatriculadoHistory] = useState({});
 
   // Load data from localStorage on component mount
@@ -39,7 +39,13 @@ const AssignmentScheduler = () => {
 
     if (savedMatriculados) {
       try {
-        setMatriculados(JSON.parse(savedMatriculados));
+        const parsedMatriculados = JSON.parse(savedMatriculados);
+        // Data migration for older format
+        const migratedMatriculados = parsedMatriculados.map(p => ({
+          ...p,
+          roles: p.roles || { lecturaBiblia: false }
+        }));
+        setMatriculados(migratedMatriculados);
       } catch (e) {
         console.error('Error loading matriculados:', e);
       }
@@ -91,12 +97,30 @@ const AssignmentScheduler = () => {
     localStorage.setItem('assignmentMatriculadoHistory', JSON.stringify(matriculadoHistory));
   }, [matriculadoHistory]);
 
+  const weeks = generateWeeks(currentMonth, currentYear);
+
+  useEffect(() => {
+    const newConfig = {};
+    weeks.forEach(week => {
+      newConfig[week.key] = assignmentsPerWeekConfig[week.key] || 2;
+    });
+    setAssignmentsPerWeekConfig(newConfig);
+  }, [currentMonth, currentYear]);
+
+  const handleWeekConfigChange = (weekKey, value) => {
+    setAssignmentsPerWeekConfig(prev => ({
+      ...prev,
+      [weekKey]: Math.max(0, parseInt(value) || 0)
+    }));
+  };
+
   const addMatriculado = () => {
     if (newMatriculadoName.trim()) {
       const newMatriculado = {
         id: Date.now(),
         name: newMatriculadoName.trim(),
         gender: newMatriculadoGender,
+        roles: { lecturaBiblia: false },
       };
       setMatriculados([...matriculados, newMatriculado]);
       setNewMatriculadoName('');
@@ -109,8 +133,23 @@ const AssignmentScheduler = () => {
 
   const updateMatriculadoGender = (personId, newGender) => {
     setMatriculados(matriculados.map(person =>
-      person.id === personId ? { ...person, gender: newGender } : person
+      person.id === personId ? { ...person, gender: newGender, roles: person.roles || { lecturaBiblia: false } } : person
     ));
+  };
+
+  const toggleMatriculadoRole = (personId, role) => {
+    setMatriculados(matriculados.map(person => {
+      if (person.id === personId) {
+        return {
+          ...person,
+          roles: {
+            ...person.roles,
+            [role]: !person.roles[role]
+          }
+        };
+      }
+      return person;
+    }));
   };
 
   const addBulkMatriculados = () => {
@@ -120,6 +159,7 @@ const AssignmentScheduler = () => {
         id: Date.now() + Math.random(),
         name: name.trim(),
         gender: 'hombre', // Default gender, user can change it later
+        roles: { lecturaBiblia: false },
       }));
       setMatriculados([...matriculados, ...newPeople]);
       setBulkMatriculadosNames('');
@@ -390,7 +430,7 @@ const AssignmentScheduler = () => {
 
       // Filter based on bi-weekly rule (can't be assigned in the previous week)
       if (previousWeekKey && newAssignments[previousWeekKey]) {
-        const usedLastWeek = Object.values(newAssignments[previousWeekKey]).flat().map(a => (a.encargado || a.ayudante) ? [a.encargado, a.ayudante] : a).flat();
+        const usedLastWeek = Object.values(newAssignments[previousWeekKey]).flat().map(a => (typeof a === 'object' && a !== null) ? [a.encargado, a.ayudante] : a).flat().filter(Boolean);
         availableMatriculados = availableMatriculados.filter(m => !usedLastWeek.includes(m.name));
       }
 
@@ -400,13 +440,43 @@ const AssignmentScheduler = () => {
 
       let usedInMatriculadoLoop = [];
 
+      // Assign Lectura de la biblia
+      const lectoresDisponibles = availableMatriculados.filter(m => m.gender === 'hombre' && m.roles?.lecturaBiblia);
+
+      const getNextLector = (used) => {
+        const available = lectoresDisponibles.filter(l => !used.includes(l.name));
+        if (available.length === 0) return null;
+        // Simple rotation for now
+        return available[weekIndex % available.length];
+      };
+
+      const lectorSalaA = getNextLector(usedInMatriculadoLoop);
+      if (lectorSalaA) {
+        weekAssignments['Sala A Lectura Biblia'] = lectorSalaA.name;
+        usedInMatriculadoLoop.push(lectorSalaA.name);
+      }
+
+      const lectorSalaB = getNextLector(usedInMatriculadoLoop);
+      if (lectorSalaB) {
+        weekAssignments['Sala B Lectura Biblia'] = lectorSalaB.name;
+        usedInMatriculadoLoop.push(lectorSalaB.name);
+      }
+
+
+      const assignmentsForThisWeek = assignmentsPerWeekConfig[weekKey] || 0;
+
       // 3. Loop for assignments per week
-      for (let i = 0; i < matriculadoAssignmentsPerWeek; i++) {
+      for (let i = 0; i < assignmentsForThisWeek; i++) {
         const assignmentNum = i + 1;
 
-        // Alternate genders for fairness, starting with men
-        const genderGroup = i % 2 === 0 ? availableMen : availableWomen;
-        const otherGenderGroup = i % 2 === 0 ? availableWomen : availableMen;
+        let genderGroup;
+        // Rule: First assignment of the first week is always men
+        if (weekIndex === 0 && i === 0) {
+          genderGroup = availableMen;
+        } else {
+          // Alternate genders for fairness, starting with women for second assignment
+          genderGroup = i % 2 === 1 ? availableMen : availableWomen;
+        }
 
         const assignPair = (sala) => {
           // Sort by fairness: those who have been encargados/ayudantes less often come first
@@ -453,7 +523,6 @@ const AssignmentScheduler = () => {
       }
       newAssignments[weekKey] = weekAssignments;
     });
-
 
     setAssignments(newAssignments);
     setHistory(newHistory);
@@ -777,40 +846,67 @@ const AssignmentScheduler = () => {
             {/* List of matriculados */}
             <div className="space-y-2">
               {matriculados.map(person => (
-                <div key={person.id} className="bg-white p-3 rounded-lg border flex justify-between items-center">
-                  <span className="font-semibold">{person.name}</span>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={person.gender}
-                      onChange={(e) => updateMatriculadoGender(person.id, e.target.value)}
-                      className={`border rounded-md py-1 px-2 text-sm ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}
-                    >
-                      <option value="hombre">Hombre</option>
-                      <option value="mujer">Mujer</option>
-                    </select>
-                    <button
-                      onClick={() => deleteMatriculado(person.id)}
-                      className="text-red-600 hover:text-red-800"
-                      title="Eliminar matriculado"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                <div key={person.id} className="bg-white p-3 rounded-lg border">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">{person.name}</span>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={person.gender}
+                        onChange={(e) => updateMatriculadoGender(person.id, e.target.value)}
+                        className={`border rounded-md py-1 px-2 text-sm ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}
+                      >
+                        <option value="hombre">Hombre</option>
+                        <option value="mujer">Mujer</option>
+                      </select>
+                      <button
+                        onClick={() => deleteMatriculado(person.id)}
+                        className="text-red-600 hover:text-red-800"
+                        title="Eliminar matriculado"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
+                  {person.gender === 'hombre' && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <button
+                          onClick={() => toggleMatriculadoRole(person.id, 'lecturaBiblia')}
+                          className="flex items-center"
+                        >
+                          {person.roles?.lecturaBiblia ?
+                            <CheckSquare className="w-4 h-4 text-blue-600" /> :
+                            <Square className="w-4 h-4 text-gray-400" />
+                          }
+                        </button>
+                        <span>Lectura de la biblia</span>
+                      </label>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-4 mb-4">
-          <label htmlFor="matriculado-assignments" className="font-semibold">Asignaciones de Matriculados por Semana:</label>
-          <input
-            type="number"
-            id="matriculado-assignments"
-            value={matriculadoAssignmentsPerWeek}
-            onChange={(e) => setMatriculadoAssignmentsPerWeek(Math.max(0, parseInt(e.target.value) || 0))}
-            className="px-3 py-2 border rounded-md w-20"
-          />
+        <div className="bg-gray-100 p-4 rounded-lg mb-6">
+          <h3 className="text-lg font-semibold mb-3">Configurar Asignaciones de Matriculados</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {weeks.map((week, index) => (
+              <div key={week.key} className="flex flex-col">
+                <label htmlFor={`week-${week.key}`} className="font-semibold text-sm mb-1">
+                  Semana {index + 1}
+                </label>
+                <input
+                  type="number"
+                  id={`week-${week.key}`}
+                  value={assignmentsPerWeekConfig[week.key] || 0}
+                  onChange={(e) => handleWeekConfigChange(week.key, e.target.value)}
+                  className="px-3 py-2 border rounded-md w-full"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <button 
@@ -865,6 +961,26 @@ const AssignmentScheduler = () => {
                             <span>{`E: ${assignment.encargado}, A: ${assignment.ayudante}`}</span>
                             <button
                               onClick={() => copyToClipboard(assignmentText)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                  })}
+                  {Object.keys(assignments[week.key] || {})
+                    .filter(role => /Lectura Biblia/.test(role))
+                    .sort()
+                    .map(role => {
+                      const assignment = assignments[week.key][role];
+                      return (
+                        <div key={role} className="flex justify-between items-center py-2 border-b">
+                          <span className="font-medium">{role}:</span>
+                          <div className="flex items-center gap-2">
+                            <span>{assignment}</span>
+                            <button
+                              onClick={() => copyToClipboard(assignment)}
                               className="text-gray-500 hover:text-gray-700"
                             >
                               <Copy className="w-4 h-4" />
