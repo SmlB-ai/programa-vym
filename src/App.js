@@ -502,12 +502,11 @@ const AssignmentScheduler = () => {
         const assignmentNum = i + 1;
 
         let genderGroup;
-        // Rule: First assignment of the first week is always men
+        // New Rule: Asignacion 1 of Week 1 is men. All others are women.
         if (weekIndex === 0 && i === 0) {
           genderGroup = availableMen;
         } else {
-          // Alternate genders for fairness, starting with women for second assignment
-          genderGroup = i % 2 === 1 ? availableMen : availableWomen;
+          genderGroup = availableWomen;
         }
 
         const assignPair = (sala) => {
@@ -675,6 +674,26 @@ const AssignmentScheduler = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const getSortedRolesForDisplay = (weekAssignments) => {
+    const allKeys = Object.keys(weekAssignments || {});
+
+    const lecturaBiblia = allKeys.filter(role => /Lectura Biblia/.test(role)).sort();
+    const salaA = allKeys.filter(role => /Sala A Asignacion/.test(role)).sort();
+    const salaB = allKeys.filter(role => /Sala B Asignacion/.test(role)).sort();
+
+    const finalOrder = [
+      'Presidente', 'Oracion inicial', 'Tesoros', 'Perlas',
+      ...lecturaBiblia,
+      ...salaA,
+      ...salaB,
+      'Vida y ministerio', 'Vida y ministerio 2', 'Estudio biblico',
+      'Lector del libro', 'Oracion final', 'Acomodadores exterior', 'Acomodadores interior'
+    ];
+
+    // Return a new array with only the keys that exist in the assignments, but sorted.
+    return finalOrder.filter(role => allKeys.includes(role));
   };
 
   return (
@@ -1066,68 +1085,35 @@ const AssignmentScheduler = () => {
                   Semana {index + 1}: {formatDateRange(week.start, week.end)}
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {Object.keys(assignments[week.key] || {})
-                    .filter(role => roles.includes(role))
-                    .map(role => {
-                      const assignment = assignments[week.key][role];
-                      return (
-                        <div key={role} className="flex justify-between items-center py-2 border-b">
-                          <span className="font-medium">{role}:</span>
-                          <div className="flex items-center gap-2">
-                            <span>
-                              {Array.isArray(assignment) ? assignment.join(', ') : assignment}
-                            </span>
-                            <button
-                              onClick={() => copyToClipboard(Array.isArray(assignment) ? assignment.join(', ') : assignment)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                          </div>
+                  {getSortedRolesForDisplay(assignments[week.key]).map(role => {
+                    const assignment = assignments[week.key][role];
+                    let assignmentText = '';
+                    let copyText = '';
+
+                    if (typeof assignment === 'object' && assignment !== null) {
+                      assignmentText = `${assignment.encargado} / ${assignment.ayudante}`;
+                      copyText = assignmentText;
+                    } else {
+                      assignmentText = Array.isArray(assignment) ? assignment.join(', ') : assignment;
+                      copyText = assignmentText;
+                    }
+
+                    if (!assignment) return null;
+
+                    return (
+                      <div key={role} className="flex justify-between items-center py-2 border-b">
+                        <span className="font-medium">{role}:</span>
+                        <div className="flex items-center gap-2">
+                          <span>{assignmentText}</span>
+                          <button
+                            onClick={() => copyToClipboard(copyText)}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
                         </div>
-                      );
-                  })}
-                  {Object.keys(assignments[week.key] || {})
-                    .filter(role => /^Sala [AB] Asignacion \d+$/.test(role))
-                    .sort()
-                    .map(role => {
-                      const assignment = assignments[week.key][role];
-                      if (!assignment || !assignment.encargado) return null;
-                      const assignmentText = `Encargado: ${assignment.encargado}, Ayudante: ${assignment.ayudante}`;
-                      return (
-                        <div key={role} className="flex justify-between items-center py-2 border-b">
-                          <span className="font-medium">{role}:</span>
-                          <div className="flex items-center gap-2">
-                            <span>{`E: ${assignment.encargado}, A: ${assignment.ayudante}`}</span>
-                            <button
-                              onClick={() => copyToClipboard(assignmentText)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                  })}
-                  {Object.keys(assignments[week.key] || {})
-                    .filter(role => /Lectura Biblia/.test(role))
-                    .sort()
-                    .map(role => {
-                      const assignment = assignments[week.key][role];
-                      return (
-                        <div key={role} className="flex justify-between items-center py-2 border-b">
-                          <span className="font-medium">{role}:</span>
-                          <div className="flex items-center gap-2">
-                            <span>{assignment}</span>
-                            <button
-                              onClick={() => copyToClipboard(assignment)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
+                      </div>
+                    );
                   })}
                 </div>
               </div>
