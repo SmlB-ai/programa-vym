@@ -53,17 +53,29 @@ const AssignmentScheduler = () => {
     
     if (savedHistory) {
       try {
-        setHistory(JSON.parse(savedHistory));
+        const parsed = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) {
+          setHistory(parsed);
+        } else {
+          setHistory([]); // Reset if old format is detected
+        }
       } catch (e) {
         console.error('Error loading history:', e);
+        setHistory([]);
       }
     }
 
     if (savedMatriculadoHistory) {
       try {
-        setMatriculadoHistory(JSON.parse(savedMatriculadoHistory));
+        const parsed = JSON.parse(savedMatriculadoHistory);
+        if (Array.isArray(parsed)) {
+          setMatriculadoHistory(parsed);
+        } else {
+          setMatriculadoHistory([]); // Reset if old format is detected
+        }
       } catch (e) {
         console.error('Error loading matriculado history:', e);
+        setMatriculadoHistory([]);
       }
     }
 
