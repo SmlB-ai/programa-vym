@@ -184,11 +184,12 @@ const AssignmentScheduler = () => {
   const toggleMatriculadoRole = (personId, role) => {
     setMatriculados(matriculados.map(person => {
       if (person.id === personId) {
+        const currentRoles = person.roles || {};
         return {
           ...person,
           roles: {
-            ...person.roles,
-            [role]: !person.roles[role]
+            ...currentRoles,
+            [role]: !currentRoles[role]
           }
         };
       }
@@ -420,7 +421,7 @@ const AssignmentScheduler = () => {
       const availableMen = availableMatriculados.filter(m => m.gender === 'hombre');
       const availableWomen = availableMatriculados.filter(m => m.gender === 'mujer');
 
-      const lectoresDisponibles = availableMen.filter(m => m.roles?.lecturaBiblia);
+      const lectoresDisponibles = availableMen.filter(m => m.roles && m.roles.lecturaBiblia);
       const lectorSalaA = getNextPerson(lectoresDisponibles, { weekIndex, role: 'Lectura Biblia', usedInWeek: usedThisWeek });
       if (lectorSalaA) {
         weekAssignments['Sala A Lectura Biblia'] = lectorSalaA.name;
