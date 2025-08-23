@@ -21,6 +21,38 @@ const AssignmentScheduler = () => {
   const [assignmentsPerWeekConfig, setAssignmentsPerWeekConfig] = useState({});
   const [matriculadoHistory, setMatriculadoHistory] = useState([]); // Changed to array
 
+  // Generate weeks for a month
+  const generateWeeks = (month, year) => {
+    const weeks = [];
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+
+    let startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
+
+    while (startDate <= lastDay) {
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+
+      // Check if this week has any days in the current month
+      const weekHasCurrentMonth = (startDate.getMonth() + 1 === month && startDate.getFullYear() === year) ||
+                                 (endDate.getMonth() + 1 === month && endDate.getFullYear() === year) ||
+                                 (startDate < firstDay && endDate > lastDay);
+
+      if (weekHasCurrentMonth) {
+        weeks.push({
+          start: new Date(startDate),
+          end: new Date(endDate),
+          key: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
+        });
+      }
+
+      startDate.setDate(startDate.getDate() + 7);
+    }
+
+    return weeks;
+  };
+
   // Load data from localStorage on component mount
   useEffect(() => {
     const savedPeople = localStorage.getItem('assignmentPeople');
@@ -197,38 +229,6 @@ const AssignmentScheduler = () => {
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
-
-  // Generate weeks for a month
-  const generateWeeks = (month, year) => {
-    const weeks = [];
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay = new Date(year, month, 0);
-    
-    let startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
-    
-    while (startDate <= lastDay) {
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6);
-      
-      // Check if this week has any days in the current month
-      const weekHasCurrentMonth = (startDate.getMonth() + 1 === month && startDate.getFullYear() === year) ||
-                                 (endDate.getMonth() + 1 === month && endDate.getFullYear() === year) ||
-                                 (startDate < firstDay && endDate > lastDay);
-      
-      if (weekHasCurrentMonth) {
-        weeks.push({
-          start: new Date(startDate),
-          end: new Date(endDate),
-          key: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
-        });
-      }
-      
-      startDate.setDate(startDate.getDate() + 7);
-    }
-    
-    return weeks;
-  };
 
   const formatDateRange = (start, end) => {
     const startStr = `${start.getDate()}/${start.getMonth() + 1}`;
