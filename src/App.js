@@ -1090,7 +1090,7 @@ const AssignmentScheduler = () => {
                     let assignmentText = '';
                     let copyText = '';
 
-                    if (typeof assignment === 'object' && assignment !== null) {
+                    if (typeof assignment === 'object' && assignment !== null && 'encargado' in assignment) {
                       assignmentText = `${assignment.encargado} / ${assignment.ayudante}`;
                       copyText = assignmentText;
                     } else {
