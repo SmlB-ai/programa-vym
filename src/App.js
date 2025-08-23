@@ -6,7 +6,7 @@ const AssignmentScheduler = () => {
   const [currentMonth, setCurrentMonth] = useState(9); // September
   const [currentYear, setCurrentYear] = useState(2024);
   const [assignments, setAssignments] = useState({});
-  const [history, setHistory] = useState({});
+  const [history, setHistory] = useState([]); // Changed to array
   const [newPersonName, setNewPersonName] = useState('');
   const [bulkNames, setBulkNames] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
@@ -19,7 +19,7 @@ const AssignmentScheduler = () => {
   const [bulkMatriculadosNames, setBulkMatriculadosNames] = useState('');
   const [showBulkMatriculadosInput, setShowBulkMatriculadosInput] = useState(false);
   const [assignmentsPerWeekConfig, setAssignmentsPerWeekConfig] = useState({});
-  const [matriculadoHistory, setMatriculadoHistory] = useState({});
+  const [matriculadoHistory, setMatriculadoHistory] = useState([]); // Changed to array
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -322,8 +322,28 @@ const AssignmentScheduler = () => {
   const generateAssignments = () => {
     const weeks = generateWeeks(currentMonth, currentYear);
     const newAssignments = {};
-    const newHistory = { ...history };
-    const newMatriculadoHistory = JSON.parse(JSON.stringify(matriculadoHistory)); // Deep copy
+
+    // Flatten history for rotation logic
+    const flatHistory = history.reduce((acc, monthHistory) => {
+      Object.entries(monthHistory.data).forEach(([role, names]) => {
+        if (!acc[role]) acc[role] = [];
+        acc[role].push(...names);
+      });
+      return acc;
+    }, {});
+
+    const flatMatriculadoHistory = matriculadoHistory.reduce((acc, monthHistory) => {
+      Object.entries(monthHistory.data).forEach(([personId, data]) => {
+        if (!acc[personId]) acc[personId] = { encargado: 0, ayudante: 0, assignments: [] };
+        acc[personId].encargado += data.encargado;
+        acc[personId].ayudante += data.ayudante;
+        acc[personId].assignments.push(...data.assignments);
+      });
+      return acc;
+    }, {});
+
+    const newHistory = { ...flatHistory };
+    const newMatriculadoHistory = JSON.parse(JSON.stringify(flatMatriculadoHistory)); // Deep copy
 
     weeks.forEach((week, weekIndex) => {
       const weekKey = week.key;
@@ -525,8 +545,64 @@ const AssignmentScheduler = () => {
     });
 
     setAssignments(newAssignments);
-    setHistory(newHistory);
-    setMatriculadoHistory(newMatriculadoHistory);
+    // setHistory(newHistory);
+    // setMatriculadoHistory(newMatriculadoHistory);
+  };
+
+  const approveAndSaveHistory = () => {
+    if (Object.keys(assignments).length === 0) {
+      alert("Primero debes generar asignaciones antes de poder aprobarlas.");
+      return;
+    }
+
+    const monthIdentifier = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+    // Check if this month is already in history to prevent duplicates
+    if (history.some(h => h.month === monthIdentifier) || matriculadoHistory.some(h => h.month === monthIdentifier)) {
+      if (!window.confirm("Ya existe un historial para este mes. ¿Deseas sobrescribirlo?")) {
+        return;
+      }
+    }
+
+    // Process current assignments to generate history for this month
+    const newMonthHistory = {};
+    const newMonthMatriculadoHistory = {};
+
+    Object.values(assignments).forEach(weekAssignments => {
+      Object.entries(weekAssignments).forEach(([role, assignment]) => {
+        if (roles.includes(role)) {
+          if (!newMonthHistory[role]) newMonthHistory[role] = [];
+          const names = Array.isArray(assignment) ? assignment : [assignment];
+          newMonthHistory[role].push(...names);
+        } else if (/^Sala [AB] Asignacion \d+$/.test(role)) {
+          const { encargado, ayudante } = assignment;
+          const encargadoPerson = matriculados.find(p => p.name === encargado);
+          const ayudantePerson = matriculados.find(p => p.name === ayudante);
+
+          if (encargadoPerson) {
+            if (!newMonthMatriculadoHistory[encargadoPerson.id]) newMonthMatriculadoHistory[encargadoPerson.id] = { encargado: 0, ayudante: 0, assignments: [] };
+            newMonthMatriculadoHistory[encargadoPerson.id].encargado += 1;
+          }
+          if (ayudantePerson) {
+            if (!newMonthMatriculadoHistory[ayudantePerson.id]) newMonthMatriculadoHistory[ayudantePerson.id] = { encargado: 0, ayudante: 0, assignments: [] };
+            newMonthMatriculadoHistory[ayudantePerson.id].ayudante += 1;
+          }
+        }
+      });
+    });
+
+    // Filter out the current month if it exists, to handle overwrites
+    const filteredHistory = history.filter(h => h.month !== monthIdentifier);
+    const filteredMatriculadoHistory = matriculadoHistory.filter(h => h.month !== monthIdentifier);
+
+    // Add the new history and apply the 2-month window
+    const updatedHistory = [...filteredHistory, { month: monthIdentifier, data: newMonthHistory }].slice(-2);
+    const updatedMatriculadoHistory = [...filteredMatriculadoHistory, { month: monthIdentifier, data: newMonthMatriculadoHistory }].slice(-2);
+
+    setHistory(updatedHistory);
+    setMatriculadoHistory(updatedMatriculadoHistory);
+
+    alert(`El historial para ${months[currentMonth - 1]} ${currentYear} ha sido guardado y aprobado.`);
   };
 
   const clearHistory = () => {
@@ -654,6 +730,12 @@ const AssignmentScheduler = () => {
             className={`px-4 py-2 text-lg font-semibold ${activeTab === 'matriculados' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
           >
             Matriculados
+          </button>
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`px-4 py-2 text-lg font-semibold ${activeTab === 'historial' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+          >
+            Historial
           </button>
         </div>
 
@@ -887,6 +969,45 @@ const AssignmentScheduler = () => {
           </div>
         )}
 
+        {activeTab === 'historial' && (
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h2 className="text-xl font-semibold text-gray-700 mb-4">Historial de Asignaciones Aprobadas</h2>
+            {history.length === 0 && <p>No hay historial aprobado.</p>}
+            <div className="space-y-6">
+              {history.map(monthEntry => (
+                <div key={monthEntry.month} className="bg-white p-4 rounded-lg border">
+                  <h3 className="text-lg font-bold text-blue-700 mb-2">Mes: {monthEntry.month}</h3>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Historial General</h4>
+                    {Object.entries(monthEntry.data).map(([role, names]) => (
+                      <div key={role} className="text-sm">
+                        <span className="font-medium">{role}:</span> {names.join(', ')}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {matriculadoHistory.map(monthEntry => (
+                 <div key={monthEntry.month} className="bg-white p-4 rounded-lg border mt-4">
+                   <h3 className="text-lg font-bold text-purple-700 mb-2">Mes (Matriculados): {monthEntry.month}</h3>
+                   <div className="space-y-2">
+                     <h4 className="font-semibold">Historial de Matriculados (conteo de roles)</h4>
+                     {Object.entries(monthEntry.data).map(([personId, data]) => {
+                        const person = matriculados.find(p => p.id === parseInt(personId));
+                        return (
+                          <div key={personId} className="text-sm">
+                            <span className="font-medium">{person ? person.name : 'ID no encontrado'}:</span>
+                            {` Encargado: ${data.encargado}, Ayudante: ${data.ayudante}`}
+                          </div>
+                        )
+                     })}
+                   </div>
+                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-gray-100 p-4 rounded-lg mb-6">
           <h3 className="text-lg font-semibold mb-3">Configurar Asignaciones de Matriculados</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -907,12 +1028,21 @@ const AssignmentScheduler = () => {
           </div>
         </div>
 
-        <button 
-          onClick={generateAssignments}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold mb-6"
-        >
-          Generar Asignaciones para {months[currentMonth - 1]} {currentYear}
-        </button>
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={generateAssignments}
+            className="w-1/2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+          >
+            Generar Asignaciones para {months[currentMonth - 1]} {currentYear}
+          </button>
+          <button
+            onClick={approveAndSaveHistory}
+            disabled={Object.keys(assignments).length === 0}
+            className="w-1/2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Aprobar y Guardar Historial
+          </button>
+        </div>
 
         {/* Assignments display */}
         {weeks.length > 0 && assignments && Object.keys(assignments).length > 0 && (
