@@ -60,7 +60,7 @@ const AssignmentScheduler = () => {
     const savedVidaMinisterio2 = localStorage.getItem('vidaMinisterio2Weeks');
     const savedMatriculados = localStorage.getItem('assignmentMatriculados');
     const savedMatriculadoHistory = localStorage.getItem('assignmentMatriculadoHistory');
-    
+
     if (savedPeople) {
       try {
         setPeople(JSON.parse(savedPeople));
@@ -82,7 +82,7 @@ const AssignmentScheduler = () => {
         console.error('Error loading matriculados:', e);
       }
     }
-    
+
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
@@ -267,18 +267,18 @@ const AssignmentScheduler = () => {
   };
 
   const toggleRole = (personId, role) => {
-    setPeople(people.map(person => 
-      person.id === personId 
+    setPeople(people.map(person =>
+      person.id === personId
         ? { ...person, roles: { ...person.roles, [role]: !person.roles[role] } }
         : person
     ));
   };
 
   const toggleAllRoles = (personId, assign) => {
-    setPeople(people.map(person => 
-      person.id === personId 
-        ? { 
-            ...person, 
+    setPeople(people.map(person =>
+      person.id === personId
+        ? {
+            ...person,
             roles: Object.keys(person.roles).reduce((acc, role) => {
               acc[role] = assign;
               return acc;
@@ -377,7 +377,7 @@ const AssignmentScheduler = () => {
 
       // --- REGULAR ASSIGNMENTS ---
       const singleRoles = [
-        'Presidente', 'Oracion inicial', 'Tesoros', 'Perlas', 
+        'Presidente', 'Oracion inicial', 'Tesoros', 'Perlas',
         'Vida y ministerio', 'Estudio biblico', 'Lector del libro', 'Oracion final', 'Vida y ministerio 2'
       ];
 
@@ -616,8 +616,8 @@ const AssignmentScheduler = () => {
 
         {/* Month/Year selector */}
         <div className="flex gap-4 mb-6">
-          <select 
-            value={currentMonth} 
+          <select
+            value={currentMonth}
             onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
             className="px-3 py-2 border rounded-md"
           >
@@ -625,13 +625,13 @@ const AssignmentScheduler = () => {
               <option key={idx} value={idx + 1}>{month}</option>
             ))}
           </select>
-          <input 
-            type="number" 
-            value={currentYear} 
+          <input
+            type="number"
+            value={currentYear}
             onChange={(e) => setCurrentYear(parseInt(e.target.value))}
             className="px-3 py-2 border rounded-md w-20"
           />
-          <button 
+          <button
             onClick={clearHistory}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2"
           >
