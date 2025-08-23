@@ -421,21 +421,22 @@ const AssignmentScheduler = () => {
       const availableMen = availableMatriculados.filter(m => m.gender === 'hombre');
       const availableWomen = availableMatriculados.filter(m => m.gender === 'mujer');
 
-      const lectoresDisponibles = availableMen.filter(m => {
-        if (!m.roles) {
-          console.log('ERROR: Matriculado sin propiedad .roles:', m);
-        }
-        return m.roles && m.roles.lecturaBiblia;
-      });
+      const lectoresDisponibles = availableMen.filter(m => m && m.roles && m.roles.lecturaBiblia);
+
       const lectorSalaA = getNextPerson(lectoresDisponibles, { weekIndex, role: 'Lectura Biblia', usedInWeek: usedThisWeek });
       if (lectorSalaA) {
         weekAssignments['Sala A Lectura Biblia'] = lectorSalaA.name;
         assignAndTrack(lectorSalaA, 'Lectura Biblia');
+      } else {
+        weekAssignments['Sala A Lectura Biblia'] = 'VACANTE';
       }
+
       const lectorSalaB = getNextPerson(lectoresDisponibles, { weekIndex, role: 'Lectura Biblia', usedInWeek: usedThisWeek });
       if (lectorSalaB) {
         weekAssignments['Sala B Lectura Biblia'] = lectorSalaB.name;
         assignAndTrack(lectorSalaB, 'Lectura Biblia');
+      } else {
+        weekAssignments['Sala B Lectura Biblia'] = 'VACANTE';
       }
 
       const assignmentsForThisWeek = assignmentsPerWeekConfig[weekKey] || 0;
@@ -444,15 +445,25 @@ const AssignmentScheduler = () => {
         let genderGroup = (weekIndex === 0 && i === 0) ? availableMen : availableWomen;
 
         const assignPair = (sala) => {
-          const encargado = getNextPerson(genderGroup, { weekIndex, usedInWeek: usedThisWeek, isMatriculadoPair: true });
-          if (!encargado) return;
-          assignAndTrack(encargado, `Sala ${sala} Encargado`);
+          const assignmentKey = `Sala ${sala} Asignacion ${assignmentNum}`;
 
-          const ayudante = getNextPerson(genderGroup, { weekIndex, usedInWeek: usedThisWeek, isMatriculadoPair: true });
-          if (!ayudante) return;
+          const encargado = getNextPerson(genderGroup, { weekIndex, usedInWeek: usedThisWeek, isMatriculadoPair: true });
+          if (!encargado) {
+            weekAssignments[assignmentKey] = { encargado: 'VACANTE', ayudante: 'VACANTE' };
+            return;
+          }
+
+          const tempUsed = [...usedThisWeek, encargado.name];
+          const ayudante = getNextPerson(genderGroup, { weekIndex, usedInWeek: tempUsed, isMatriculadoPair: true });
+
+          if (!ayudante) {
+            weekAssignments[assignmentKey] = { encargado: 'VACANTE', ayudante: 'VACANTE' };
+            return;
+          }
+
+          assignAndTrack(encargado, `Sala ${sala} Encargado`);
           assignAndTrack(ayudante, `Sala ${sala} Ayudante`);
 
-          const assignmentKey = `Sala ${sala} Asignacion ${assignmentNum}`;
           weekAssignments[assignmentKey] = { encargado: encargado.name, ayudante: ayudante.name };
 
           const tempEncHist = tempMatriculadoHistory[encargado.id] || { encargado: 0, ayudante: 0 };
