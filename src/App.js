@@ -51,8 +51,10 @@ const AssignmentScheduler = () => {
     try {
       const savedPeople = localStorage.getItem('assignmentPeople');
       if (savedPeople) setPeople(JSON.parse(savedPeople));
+
       const savedMatriculados = localStorage.getItem('assignmentMatriculados');
       if (savedMatriculados) setMatriculados(JSON.parse(savedMatriculados).map(p => ({ ...p, roles: p.roles || { lecturaBiblia: false } })));
+
       const savedHistory = localStorage.getItem('assignmentHistory');
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
@@ -65,6 +67,7 @@ const AssignmentScheduler = () => {
           }
         } else { setHistory([]); }
       }
+
       const savedMatriculadoHistory = localStorage.getItem('assignmentMatriculadoHistory');
       if (savedMatriculadoHistory) {
         const parsed = JSON.parse(savedMatriculadoHistory);
@@ -206,10 +209,9 @@ const AssignmentScheduler = () => {
       if (lectorSalaB) assignAndTrack(lectorSalaB, 'Sala B Lectura Biblia');
       const assignmentsForThisWeek = assignmentsPerWeekConfig[weekKey] || 0;
       for (let i = 0; i < assignmentsForThisWeek; i++) {
-        const assignmentNum = i + 1;
         let genderGroup = (weekIndex === 0 && i === 0) ? availableMen : availableWomen;
         const assignPair = (sala) => {
-          const assignmentKey = `Sala ${sala} Asignacion ${assignmentNum}`;
+          const assignmentKey = `Sala ${sala} Asignacion ${i + 1}`;
           const roleName = `Sala ${sala} Asignacion`;
           const encargado = getNextPerson(genderGroup, { role: roleName, weekIndex, usedInWeek: usedThisWeek, isPairAssignment: true, pairRoleType: 'encargado' });
           if (encargado) assignAndTrack(encargado, roleName, true);
@@ -290,15 +292,7 @@ const AssignmentScheduler = () => {
               <button onClick={addPerson} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"><Plus className="w-4 h-4" /></button>
               <button onClick={() => setShowBulkInput(!showBulkInput)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Varios</button>
             </div>
-            {showBulkInput && (
-              <div className="mb-4">
-                <textarea placeholder="Escribe un nombre por línea" value={bulkNames} onChange={(e) => setBulkNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={addBulkPeople} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button>
-                  <button onClick={() => setShowBulkInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button>
-                </div>
-              </div>
-            )}
+            {showBulkInput && ( <div className="mb-4"> <textarea placeholder="Escribe un nombre por línea" value={bulkNames} onChange={(e) => setBulkNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" /> <div className="flex gap-2 mt-2"> <button onClick={addBulkPeople} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button> <button onClick={() => setShowBulkInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button> </div> </div> )}
             <div className="space-y-4">{people.map(person => (<div key={person.id} className="bg-white p-4 rounded-lg border"><div className="flex justify-between items-start mb-3"><h3 className="font-semibold text-lg">{person.name}</h3><div className="flex gap-2"><button onClick={() => toggleAllRoles(person.id, true)} className="text-green-600 hover:text-green-800 flex items-center gap-1" title="Seleccionar todos los roles"><CheckCircle className="w-4 h-4" /><span className="text-xs">Todos</span></button><button onClick={() => toggleAllRoles(person.id, false)} className="text-red-600 hover:text-red-800 flex items-center gap-1" title="Quitar todos los roles"><XCircle className="w-4 h-4" /><span className="text-xs">Ninguno</span></button><button onClick={() => deletePerson(person.id)} className="text-red-600 hover:text-red-800" title="Eliminar persona"><Trash2 className="w-4 h-4" /></button></div></div><div className="grid grid-cols-3 gap-2">{roles.map(role => (<label key={role} className="flex items-center gap-2 cursor-pointer"><button onClick={() => toggleRole(person.id, role)} className="flex items-center">{person.roles[role] ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-400" />}</button><span className="text-sm">{role}</span></label>))}</div></div>))}</div>
           </div>
         )}
@@ -311,15 +305,7 @@ const AssignmentScheduler = () => {
               <button onClick={addMatriculado} className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"><Plus className="w-4 h-4" /></button>
               <button onClick={() => setShowBulkMatriculadosInput(!showBulkMatriculadosInput)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Varios</button>
             </div>
-            {showBulkMatriculadosInput && (
-              <div className="mb-4">
-                <textarea placeholder="Escribe un nombre por línea" value={bulkMatriculadosNames} onChange={(e) => setBulkMatriculadosNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={addBulkMatriculados} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button>
-                  <button onClick={() => setShowBulkMatriculadosInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button>
-                </div>
-              </div>
-            )}
+            {showBulkMatriculadosInput && ( <div className="mb-4"> <textarea placeholder="Escribe un nombre por línea" value={bulkMatriculadosNames} onChange={(e) => setBulkMatriculadosNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" /> <div className="flex gap-2 mt-2"> <button onClick={addBulkMatriculados} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button> <button onClick={() => setShowBulkMatriculadosInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button> </div> </div> )}
             <div className="space-y-2">{matriculados.map(person => (<div key={person.id} className="bg-white p-3 rounded-lg border"><div className="flex justify-between items-center"><span className="font-semibold">{person.name}</span><div className="flex items-center gap-2"><select value={person.gender} onChange={(e) => updateMatriculadoGender(person.id, e.target.value)} className={`border rounded-md py-1 px-2 text-sm ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}><option value="hombre">Hombre</option><option value="mujer">Mujer</option></select><button onClick={() => deleteMatriculado(person.id)} className="text-red-600 hover:text-red-800" title="Eliminar matriculado"><Trash2 className="w-4 h-4" /></button></div></div>{person.gender === 'hombre' && (<div className="mt-2 pt-2 border-t border-gray-200"><label className="flex items-center gap-2 cursor-pointer text-sm"><button onClick={() => toggleMatriculadoRole(person.id, 'lecturaBiblia')} className="flex items-center">{person.roles?.lecturaBiblia ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-400" />}</button><span>Lectura de la biblia</span></label></div>)}</div>))}</div>
           </div>
         )}
@@ -339,7 +325,7 @@ const AssignmentScheduler = () => {
                           const assignment = weekData[role];
                           if (!assignment || (Array.isArray(assignment) && assignment.length === 0)) return null;
                           const assignmentText = typeof assignment === 'object' && assignment !== null && 'encargado' in assignment ? `${assignment.encargado} / ${assignment.ayudante}` : (Array.isArray(assignment) ? assignment.join(', ') : assignment);
-                          if (assignmentText.trim() === 'VACANTE' || assignmentText.trim() === 'VACANTE / VACANTE') return null;
+                          if (assignmentText.includes('VACANTE')) return null;
                           return (<div key={role} className="text-sm"><span className="font-medium">{role}:</span> {assignmentText}</div>);
                         })}
                       </div>
@@ -389,7 +375,7 @@ const AssignmentScheduler = () => {
                     let assignmentText = '';
                     if (typeof assignment === 'object' && assignment !== null && 'encargado' in assignment) { assignmentText = `${assignment.encargado} / ${assignment.ayudante}`; }
                     else { assignmentText = Array.isArray(assignment) ? assignment.join(', ') : assignment; }
-                    if (!assignment || (Array.isArray(assignment) && assignment[0] === 'VACANTE') || assignmentText.trim() === 'VACANTE' || assignmentText.trim() === 'VACANTE / VACANTE') return null;
+                    if (!assignment || (Array.isArray(assignment) && assignment[0] === 'VACANTE') || assignmentText.includes('VACANTE')) return null;
                     return (
                       <div key={role} className="flex justify-between items-center py-2 border-b">
                         <span className="font-medium">{role}:</span>
