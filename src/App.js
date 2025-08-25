@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Plus, Trash2, Copy, RotateCcw, CheckSquare, Square, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Users, Plus, Trash2, Copy, RotateCcw, CheckSquare, Square, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 
 const roleCosts = {
   'Presidente': 1,
@@ -278,7 +278,10 @@ const AssignmentScheduler = () => {
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="flex items-center gap-2 mb-6">
           <Calendar className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">Asignador de Responsabilidades</h1>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            Asignador de Responsabilidades
+            <Sparkles className="w-5 h-5 text-yellow-500" title="Versión con sistema de puntos" />
+          </h1>
         </div>
         <div className="flex gap-4 mb-6">
           <select value={currentMonth} onChange={(e) => setCurrentMonth(parseInt(e.target.value))} className="px-3 py-2 border rounded-md">
