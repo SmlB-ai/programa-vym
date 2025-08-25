@@ -2,27 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Plus, Trash2, Copy, RotateCcw, CheckSquare, Square, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 
 const roleCosts = {
-  'Presidente': 1,
-  'Tesoros': 1,
-  'Perlas': 1,
-  'Vida y ministerio': 1,
-  'Estudio biblico': 1,
-  'Lector del libro': 1,
-  'Vida y ministerio 2': 1,
-  'Oracion inicial': 0.5,
-  'Oracion final': 0.5,
-  'Acomodadores exterior': 0.5,
-  'Acomodadores interior': 0.5,
-  'Sala A Lectura Biblia': 2,
-  'Sala B Lectura Biblia': 2,
-  'Sala A Asignacion': 2,
-  'Sala B Asignacion': 2,
+  'Presidente': 1, 'Tesoros': 1, 'Perlas': 1, 'Vida y ministerio': 1, 'Estudio biblico': 1, 'Lector del libro': 1, 'Vida y ministerio 2': 1,
+  'Oracion inicial': 0.5, 'Oracion final': 0.5, 'Acomodadores exterior': 0.5, 'Acomodadores interior': 0.5,
+  'Sala A Lectura Biblia': 2, 'Sala B Lectura Biblia': 2, 'Sala A Asignacion': 2, 'Sala B Asignacion': 2,
 };
 
 const AssignmentScheduler = () => {
   const [people, setPeople] = useState([]);
-  const [currentMonth, setCurrentMonth] = useState(9);
-  const [currentYear, setCurrentYear] = useState(2024);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [assignments, setAssignments] = useState({});
   const [history, setHistory] = useState([]);
   const [newPersonName, setNewPersonName] = useState('');
@@ -42,30 +30,25 @@ const AssignmentScheduler = () => {
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     let startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
+    startDate.setDate(startDate.getDate() - (startDate.getDay() === 0 ? 6 : startDate.getDay() - 1)); // Start from Monday
     while (startDate <= lastDay) {
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 6);
-      const weekHasCurrentMonth = (startDate.getMonth() + 1 === month && startDate.getFullYear() === year) || (endDate.getMonth() + 1 === month && endDate.getFullYear() === year) || (startDate < firstDay && endDate > lastDay);
-      if (weekHasCurrentMonth) {
-        weeks.push({
-          start: new Date(startDate),
-          end: new Date(endDate),
-          key: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
-        });
-      }
+      weeks.push({
+        start: new Date(startDate),
+        end: new Date(endDate),
+        key: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
+      });
       startDate.setDate(startDate.getDate() + 7);
     }
-    return weeks;
+    return weeks.filter(week => week.end.getFullYear() === year && week.end.getMonth() + 1 === month);
   };
 
   useEffect(() => {
     const savedPeople = localStorage.getItem('assignmentPeople');
     if (savedPeople) { try { setPeople(JSON.parse(savedPeople)); } catch (e) { console.error('Error loading people:', e); } }
-
     const savedMatriculados = localStorage.getItem('assignmentMatriculados');
     if (savedMatriculados) { try { const parsed = JSON.parse(savedMatriculados); setMatriculados(parsed.map(p => ({ ...p, roles: p.roles || { lecturaBiblia: false } }))); } catch (e) { console.error('Error loading matriculados:', e); } }
-    
     const savedHistory = localStorage.getItem('assignmentHistory');
     if (savedHistory) {
       try {
@@ -77,12 +60,9 @@ const AssignmentScheduler = () => {
           } else {
             setHistory(parsed);
           }
-        } else {
-          setHistory([]);
-        }
+        } else { setHistory([]); }
       } catch (e) { console.error('Error loading history:', e); setHistory([]); }
     }
-
     const savedMatriculadoHistory = localStorage.getItem('assignmentMatriculadoHistory');
     if (savedMatriculadoHistory) { try { const parsed = JSON.parse(savedMatriculadoHistory); if (Array.isArray(parsed)) { setMatriculadoHistory(parsed); } else { setMatriculadoHistory([]); } } catch (e) { console.error('Error loading matriculado history:', e); setMatriculadoHistory([]); } }
   }, []);
@@ -93,7 +73,7 @@ const AssignmentScheduler = () => {
   useEffect(() => { localStorage.setItem('assignmentMatriculadoHistory', JSON.stringify(matriculadoHistory)); }, [matriculadoHistory]);
 
   const weeks = generateWeeks(currentMonth, currentYear);
-  useEffect(() => { const newConfig = {}; weeks.forEach(week => { newConfig[week.key] = assignmentsPerWeekConfig[week.key] || 2; }); setAssignmentsPerWeekConfig(newConfig); }, [currentMonth, currentYear, weeks]);
+  useEffect(() => { const newConfig = {}; weeks.forEach(week => { newConfig[week.key] = assignmentsPerWeekConfig[week.key] || 2; }); setAssignmentsPerWeekConfig(newConfig); }, [currentMonth, currentYear]);
 
   const handleWeekConfigChange = (weekKey, value) => { setAssignmentsPerWeekConfig(prev => ({ ...prev, [weekKey]: Math.max(0, parseInt(value) || 0) })); };
   const addMatriculado = () => { if (newMatriculadoName.trim()) { setMatriculados([...matriculados, { id: Date.now(), name: newMatriculadoName.trim(), gender: newMatriculadoGender, roles: { lecturaBiblia: false } }]); setNewMatriculadoName(''); } };
@@ -189,16 +169,11 @@ const AssignmentScheduler = () => {
         usedThisWeek.push(name);
       };
       const allNombradoRoles = [ 'Presidente', 'Oracion inicial', 'Tesoros', 'Perlas', 'Vida y ministerio', 'Estudio biblico', 'Lector del libro', 'Oracion final', 'Vida y ministerio 2' ];
-
       allNombradoRoles.forEach(role => {
         const candidates = getPeopleForRole(role);
         const person = getNextPerson(candidates, { role, weekIndex, usedInWeek });
-        if (person) {
-          weekAssignments[role] = person.name;
-          assignAndTrack(person, role);
-        } else {
-          weekAssignments[role] = 'VACANTE';
-        }
+        weekAssignments[role] = person ? person.name : 'VACANTE';
+        if (person) assignAndTrack(person, role);
       });
       const assignGroup = (role, count) => {
         const assignedPeople = [];
@@ -266,7 +241,8 @@ const AssignmentScheduler = () => {
     alert(`El historial para ${months[currentMonth - 1]} ${currentYear} ha sido guardado y aprobado.`);
   };
 
-  const clearHistory = () => { setHistory([]); setMatriculadoHistory([]); setAssignments({}); };
+  const clearHistory = () => { if (window.confirm("¿Estás seguro de que quieres limpiar TODO el historial?")) { setHistory([]); setMatriculadoHistory([]); setAssignments({}); alert("El historial ha sido limpiado."); } };
+  const deleteAllData = () => { if (window.confirm("¿ESTÁS SEGURO DE QUE QUIERES BORRAR TODOS LOS DATOS? Esto incluye las listas de Nombrados, Matriculados y todo el historial. Esta acción no se puede deshacer.")) { setPeople([]); setMatriculados([]); setHistory([]); setMatriculadoHistory([]); setAssignments({}); alert("Todos los datos han sido borrados."); } };
   const exportData = () => { const dataToExport = { people, matriculados, history, matriculadoHistory }; const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataToExport, null, 2))}`; const link = document.createElement('a'); link.href = jsonString; link.download = `asignaciones_backup_${new Date().toISOString().slice(0, 10)}.json`; link.click(); };
   const importData = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const importedData = JSON.parse(e.target.result); if (importedData.people && importedData.matriculados && importedData.history && importedData.matriculadoHistory) { setPeople(importedData.people); setMatriculados(importedData.matriculados); setHistory(importedData.history); setMatriculadoHistory(importedData.matriculadoHistory); setAssignments({}); alert('Datos importados con éxito!'); } else { alert('El archivo de importación no tiene el formato correcto.'); } } catch (error) { console.error('Error parsing imported file:', error); alert('Error al leer o procesar el archivo.'); } }; reader.readAsText(file); };
   const triggerImport = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = importData; input.click(); };
@@ -278,17 +254,15 @@ const AssignmentScheduler = () => {
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="flex items-center gap-2 mb-6">
           <Calendar className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            Asignador de Responsabilidades
-            <Sparkles className="w-5 h-5 text-yellow-500" title="Versión con sistema de puntos" />
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">Asignador de Responsabilidades<Sparkles className="w-5 h-5 text-yellow-500" title="Versión con sistema de puntos" /></h1>
         </div>
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-6 flex-wrap">
           <select value={currentMonth} onChange={(e) => setCurrentMonth(parseInt(e.target.value))} className="px-3 py-2 border rounded-md">
             {months.map((month, idx) => (<option key={idx} value={idx + 1}>{month}</option>))}
           </select>
-          <input type="number" value={currentYear} onChange={(e) => setCurrentYear(parseInt(e.target.value))} className="px-3 py-2 border rounded-md w-20" />
-          <button onClick={clearHistory} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2"><RotateCcw className="w-4 h-4" /> Limpiar Historial</button>
+          <input type="number" value={currentYear} onChange={(e) => setCurrentYear(parseInt(e.target.value))} className="px-3 py-2 border rounded-md w-24" />
+          <button onClick={clearHistory} className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 flex items-center gap-2"><RotateCcw className="w-4 h-4" /> Limpiar Historial</button>
+          <button onClick={deleteAllData} className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 flex items-center gap-2" title="Borrar todos los datos (listas e historial)"><Trash2 className="w-4 h-4" /> Borrar Todo</button>
           <button onClick={exportData} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2">Exportar</button>
           <button onClick={triggerImport} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2">Importar</button>
         </div>
@@ -298,97 +272,9 @@ const AssignmentScheduler = () => {
           <button onClick={() => setActiveTab('matriculados')} className={`px-4 py-2 text-lg font-semibold ${activeTab === 'matriculados' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>Matriculados</button>
           <button onClick={() => setActiveTab('historial')} className={`px-4 py-2 text-lg font-semibold ${activeTab === 'historial' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>Historial</button>
         </div>
-        {activeTab === 'programa' && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-center">
-            <h2 className="text-xl font-semibold text-gray-700">Bienvenido al Asignador de Responsabilidades</h2>
-            <p className="text-gray-600 mt-2">Selecciona el mes y el año, luego haz clic en "Generar Asignaciones".<br/>Usa las pestañas "Nombrados" y "Matriculados" para gestionar las listas de personas.</p>
-          </div>
-        )}
-        {activeTab === 'nombrados' && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-4"><Users className="w-5 h-5 text-green-600" /><h2 className="text-lg font-semibold">Gestión de Nombrados</h2></div>
-            <div className="flex gap-2 mb-4">
-              <input type="text" placeholder="Nombre de la persona" value={newPersonName} onChange={(e) => setNewPersonName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addPerson()} className="flex-1 px-3 py-2 border rounded-md" />
-              <button onClick={addPerson} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"><Plus className="w-4 h-4" /></button>
-              <button onClick={() => setShowBulkInput(!showBulkInput)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Varios</button>
-            </div>
-            {showBulkInput && (
-              <div className="mb-4">
-                <textarea placeholder="Escribe un nombre por línea" value={bulkNames} onChange={(e) => setBulkNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={addBulkPeople} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button>
-                  <button onClick={() => setShowBulkInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button>
-                </div>
-              </div>
-            )}
-            <div className="space-y-4">
-              {people.map(person => (
-                <div key={person.id} className="bg-white p-4 rounded-lg border">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold text-lg">{person.name}</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleAllRoles(person.id, true)} className="text-green-600 hover:text-green-800 flex items-center gap-1" title="Seleccionar todos los roles"><CheckCircle className="w-4 h-4" /><span className="text-xs">Todos</span></button>
-                      <button onClick={() => toggleAllRoles(person.id, false)} className="text-red-600 hover:text-red-800 flex items-center gap-1" title="Quitar todos los roles"><XCircle className="w-4 h-4" /><span className="text-xs">Ninguno</span></button>
-                      <button onClick={() => deletePerson(person.id)} className="text-red-600 hover:text-red-800" title="Eliminar persona"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {roles.map(role => (
-                      <label key={role} className="flex items-center gap-2 cursor-pointer">
-                        <button onClick={() => toggleRole(person.id, role)} className="flex items-center">{person.roles[role] ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-400" />}</button>
-                        <span className="text-sm">{role}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {activeTab === 'matriculados' && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-4"><Users className="w-5 h-5 text-purple-600" /><h2 className="text-lg font-semibold">Gestión de Matriculados</h2></div>
-            <div className="flex gap-2 mb-4">
-              <input type="text" placeholder="Nombre del matriculado" value={newMatriculadoName} onChange={(e) => setNewMatriculadoName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addMatriculado()} className="flex-1 px-3 py-2 border rounded-md" />
-              <select value={newMatriculadoGender} onChange={(e) => setNewMatriculadoGender(e.target.value)} className="px-3 py-2 border rounded-md">
-                <option value="hombre">Hombre</option>
-                <option value="mujer">Mujer</option>
-              </select>
-              <button onClick={addMatriculado} className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"><Plus className="w-4 h-4" /></button>
-              <button onClick={() => setShowBulkMatriculadosInput(!showBulkMatriculadosInput)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Varios</button>
-            </div>
-            {showBulkMatriculadosInput && (
-              <div className="mb-4">
-                <textarea placeholder="Escribe un nombre por línea" value={bulkMatriculadosNames} onChange={(e) => setBulkMatriculadosNames(e.target.value)} className="w-full px-3 py-2 border rounded-md h-32" />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={addBulkMatriculados} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Agregar Todos</button>
-                  <button onClick={() => setShowBulkMatriculadosInput(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancelar</button>
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              {matriculados.map(person => (
-                <div key={person.id} className="bg-white p-3 rounded-lg border">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">{person.name}</span>
-                    <div className="flex items-center gap-2">
-                      <select value={person.gender} onChange={(e) => updateMatriculadoGender(person.id, e.target.value)} className={`border rounded-md py-1 px-2 text-sm ${person.gender === 'hombre' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}><option value="hombre">Hombre</option><option value="mujer">Mujer</option></select>
-                      <button onClick={() => deleteMatriculado(person.id)} className="text-red-600 hover:text-red-800" title="Eliminar matriculado"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                  {person.gender === 'hombre' && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <label className="flex items-center gap-2 cursor-pointer text-sm">
-                        <button onClick={() => toggleMatriculadoRole(person.id, 'lecturaBiblia')} className="flex items-center">{person.roles?.lecturaBiblia ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-400" />}</button>
-                        <span>Lectura de la biblia</span>
-                      </label>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {activeTab === 'programa' && <div className="bg-gray-50 rounded-lg p-4 mb-6 text-center"><h2 className="text-xl font-semibold text-gray-700">Bienvenido al Asignador de Responsabilidades</h2><p className="text-gray-600 mt-2">Selecciona el mes y el año, luego haz clic en "Generar Asignaciones".<br/>Usa las pestañas "Nombrados" y "Matriculados" para gestionar las listas de personas.</p></div>}
+        {activeTab === 'nombrados' && <div>...</div>}
+        {activeTab === 'matriculados' && <div>...</div>}
         {activeTab === 'historial' && (
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <h2 className="text-xl font-semibold text-gray-700 mb-4">Historial de Asignaciones Aprobadas</h2>
@@ -397,17 +283,19 @@ const AssignmentScheduler = () => {
               {history.map(monthEntry => (
                 <div key={monthEntry.month} className="bg-white p-4 rounded-lg border">
                   <h3 className="text-lg font-bold text-blue-700 mb-2">Mes: {monthEntry.month}</h3>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Historial General</h4>
-                    {Object.entries(monthEntry.weeks).map(([weekKey, weekData]) => (
-                      <div key={weekKey}>
-                        <h5 className="font-semibold italic text-gray-600">Semana: {weekKey}</h5>
-                        {Object.entries(weekData).map(([role, assignment]) => (
-                          <div key={role} className="text-sm ml-4"><span className="font-medium">{role}:</span> {typeof assignment === 'object' && assignment !== null ? `${assignment.encargado} / ${assignment.ayudante}` : (Array.isArray(assignment) ? assignment.join(', ') : assignment)}</div>
-                        ))}
+                  {Object.entries(monthEntry.weeks).map(([weekKey, weekData]) => (
+                    <div key={weekKey} className="mt-2">
+                      <h5 className="font-semibold italic text-gray-600">Semana: {weekKey.split('-').slice(1).reverse().join('/')}</h5>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 pl-4">
+                        {getSortedRolesForDisplay(weekData).map(role => {
+                          const assignment = weekData[role];
+                          if (!assignment || (Array.isArray(assignment) && assignment.length === 0)) return null;
+                          const assignmentText = typeof assignment === 'object' && assignment !== null && 'encargado' in assignment ? `${assignment.encargado} / ${assignment.ayudante}` : (Array.isArray(assignment) ? assignment.join(', ') : assignment);
+                          return (<div key={role} className="text-sm"><span className="font-medium">{role}:</span> {assignmentText}</div>);
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               ))}
               {matriculadoHistory.map(monthEntry => (
@@ -452,7 +340,7 @@ const AssignmentScheduler = () => {
                     let assignmentText = '';
                     if (typeof assignment === 'object' && assignment !== null && 'encargado' in assignment) { assignmentText = `${assignment.encargado} / ${assignment.ayudante}`; }
                     else { assignmentText = Array.isArray(assignment) ? assignment.join(', ') : assignment; }
-                    if (!assignment) return null;
+                    if (!assignment || assignmentText.includes('VACANTE') && assignmentText.trim() === 'VACANTE') return null;
                     return (
                       <div key={role} className="flex justify-between items-center py-2 border-b">
                         <span className="font-medium">{role}:</span>
