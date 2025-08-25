@@ -333,11 +333,9 @@ const AssignmentScheduler = () => {
 
       const scored = eligible.map(p => {
         let score = 100;
-        // Penalize for being assigned in the previous week
         if (monthlyUsage[p.name]?.lastAssignedWeekIndex === weekIndex - 1) {
           score -= 50;
         }
-        // Bonus for not having a recent history in this specific role
         if (isMatriculadoPair) {
           const matriculadoRoleHistory = tempMatriculadoHistory[p.id] || { encargado: 0, ayudante: 0 };
           score -= (matriculadoRoleHistory.encargado * 5);
@@ -348,7 +346,6 @@ const AssignmentScheduler = () => {
             score += 20;
           }
         }
-        // Add randomness to break ties
         score += Math.random();
         return { person: p, score };
       });
@@ -357,10 +354,20 @@ const AssignmentScheduler = () => {
       return scored[0].person;
     };
 
+    const getNextMatriculado = (candidates, usedNames) => {
+      const available = candidates.filter(p => !usedNames.includes(p.name));
+      if (available.length === 0) {
+        return null;
+      }
+      const randomIndex = Math.floor(Math.random() * available.length);
+      return available[randomIndex];
+    };
+
     weeks.forEach((week, weekIndex) => {
       const weekKey = week.key;
       const weekAssignments = {};
       const usedThisWeek = [];
+      const usedThisWeekMatriculados = [];
 
       const assignAndTrack = (person, role, isGroup = false) => {
         if (!person) return;
@@ -375,12 +382,11 @@ const AssignmentScheduler = () => {
         }
       };
 
-      // --- REGULAR ASSIGNMENTS ---
+      // --- REGULAR ASSIGNMENTS (uses getNextPerson) ---
       const singleRoles = [
         'Presidente', 'Oracion inicial', 'Tesoros', 'Perlas', 
         'Vida y ministerio', 'Estudio biblico', 'Lector del libro', 'Oracion final', 'Vida y ministerio 2'
       ];
-
       singleRoles.forEach(role => {
         const candidates = getPeopleForRole(role);
         const person = getNextPerson(candidates, { weekIndex, role, usedInWeek: usedThisWeek, roleSpecificHistory: tempHistory });
@@ -389,7 +395,6 @@ const AssignmentScheduler = () => {
           assignAndTrack(person, role);
         }
       });
-
       const exteriorPeople = [];
       for (let i = 0; i < 3; i++) {
         const candidates = getPeopleForRole('Acomodadores exterior');
@@ -402,7 +407,6 @@ const AssignmentScheduler = () => {
         if (!tempHistory['Acomodadores exterior']) tempHistory['Acomodadores exterior'] = [];
         tempHistory['Acomodadores exterior'].push(...exteriorPeople.map(p => p.name));
       }
-
       const interiorPeople = [];
       for (let i = 0; i < 2; i++) {
         const candidates = getPeopleForRole('Acomodadores interior');
@@ -416,25 +420,24 @@ const AssignmentScheduler = () => {
         tempHistory['Acomodadores interior'].push(...interiorPeople.map(p => p.name));
       }
 
-      // --- MATRICULADOS ASSIGNMENT LOGIC ---
-      let availableMatriculados = matriculados.filter(m => !usedThisWeek.includes(m.name));
-      const availableMen = availableMatriculados.filter(m => m.gender === 'hombre');
-      const availableWomen = availableMatriculados.filter(m => m.gender === 'mujer');
+      // --- MATRICULADOS ASSIGNMENT LOGIC (uses getNextMatriculado) ---
+      const availableMen = matriculados.filter(m => m.gender === 'hombre');
+      const availableWomen = matriculados.filter(m => m.gender === 'mujer');
 
       const lectoresDisponibles = availableMen.filter(m => m && m.roles && m.roles.lecturaBiblia);
 
-      const lectorSalaA = getNextPerson(lectoresDisponibles, { weekIndex, role: 'Lectura Biblia', usedInWeek: usedThisWeek });
+      const lectorSalaA = getNextMatriculado(lectoresDisponibles, usedThisWeekMatriculados);
       if (lectorSalaA) {
         weekAssignments['Sala A Lectura Biblia'] = lectorSalaA.name;
-        assignAndTrack(lectorSalaA, 'Lectura Biblia');
+        usedThisWeekMatriculados.push(lectorSalaA.name);
       } else {
         weekAssignments['Sala A Lectura Biblia'] = 'VACANTE';
       }
 
-      const lectorSalaB = getNextPerson(lectoresDisponibles, { weekIndex, role: 'Lectura Biblia', usedInWeek: usedThisWeek });
+      const lectorSalaB = getNextMatriculado(lectoresDisponibles, usedThisWeekMatriculados);
       if (lectorSalaB) {
         weekAssignments['Sala B Lectura Biblia'] = lectorSalaB.name;
-        assignAndTrack(lectorSalaB, 'Lectura Biblia');
+        usedThisWeekMatriculados.push(lectorSalaB.name);
       } else {
         weekAssignments['Sala B Lectura Biblia'] = 'VACANTE';
       }
@@ -447,29 +450,16 @@ const AssignmentScheduler = () => {
         const assignPair = (sala) => {
           const assignmentKey = `Sala ${sala} Asignacion ${assignmentNum}`;
 
-          const encargado = getNextPerson(genderGroup, { weekIndex, usedInWeek: usedThisWeek, isMatriculadoPair: true });
-          if (!encargado) {
-            weekAssignments[assignmentKey] = { encargado: 'VACANTE', ayudante: 'VACANTE' };
-            return;
-          }
+          const encargado = getNextMatriculado(genderGroup, usedThisWeekMatriculados);
+          if (encargado) usedThisWeekMatriculados.push(encargado.name);
 
-          const tempUsed = [...usedThisWeek, encargado.name];
-          const ayudante = getNextPerson(genderGroup, { weekIndex, usedInWeek: tempUsed, isMatriculadoPair: true });
+          const ayudante = getNextMatriculado(genderGroup, usedThisWeekMatriculados);
+          if (ayudante) usedThisWeekMatriculados.push(ayudante.name);
 
-          if (!ayudante) {
-            weekAssignments[assignmentKey] = { encargado: 'VACANTE', ayudante: 'VACANTE' };
-            return;
-          }
-
-          assignAndTrack(encargado, `Sala ${sala} Encargado`);
-          assignAndTrack(ayudante, `Sala ${sala} Ayudante`);
-
-          weekAssignments[assignmentKey] = { encargado: encargado.name, ayudante: ayudante.name };
-
-          const tempEncHist = tempMatriculadoHistory[encargado.id] || { encargado: 0, ayudante: 0 };
-          tempMatriculadoHistory[encargado.id] = { ...tempEncHist, encargado: tempEncHist.encargado + 1 };
-          const tempAyuHist = tempMatriculadoHistory[ayudante.id] || { encargado: 0, ayudante: 0 };
-          tempMatriculadoHistory[ayudante.id] = { ...tempAyuHist, ayudante: tempAyuHist.ayudante + 1 };
+          weekAssignments[assignmentKey] = {
+            encargado: encargado ? encargado.name : 'VACANTE',
+            ayudante: ayudante ? ayudante.name : 'VACANTE'
+          };
         };
         assignPair('A');
         assignPair('B');
