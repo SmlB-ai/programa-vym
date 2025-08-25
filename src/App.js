@@ -34,7 +34,8 @@ const AssignmentScheduler = () => {
     while (startDate <= lastDay) {
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 6);
-      if ((endDate.getFullYear() === year && endDate.getMonth() + 1 === month) || (startDate.getFullYear() === year && startDate.getMonth() + 1 === month)) {
+      const weekHasCurrentMonth = (startDate.getMonth() + 1 === month && startDate.getFullYear() === year) || (endDate.getMonth() + 1 === month && endDate.getFullYear() === year) || (startDate < firstDay && endDate > lastDay);
+      if (weekHasCurrentMonth) {
         weeks.push({
           start: new Date(startDate),
           end: new Date(endDate),
@@ -50,10 +51,8 @@ const AssignmentScheduler = () => {
     try {
       const savedPeople = localStorage.getItem('assignmentPeople');
       if (savedPeople) setPeople(JSON.parse(savedPeople));
-
       const savedMatriculados = localStorage.getItem('assignmentMatriculados');
       if (savedMatriculados) setMatriculados(JSON.parse(savedMatriculados).map(p => ({ ...p, roles: p.roles || { lecturaBiblia: false } })));
-
       const savedHistory = localStorage.getItem('assignmentHistory');
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
@@ -66,7 +65,6 @@ const AssignmentScheduler = () => {
           }
         } else { setHistory([]); }
       }
-
       const savedMatriculadoHistory = localStorage.getItem('assignmentMatriculadoHistory');
       if (savedMatriculadoHistory) {
         const parsed = JSON.parse(savedMatriculadoHistory);
