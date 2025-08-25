@@ -367,7 +367,6 @@ const AssignmentScheduler = () => {
       const weekKey = week.key;
       const weekAssignments = {};
       const usedThisWeek = [];
-      const usedThisWeekMatriculados = [];
 
       const assignAndTrack = (person, role, isGroup = false) => {
         if (!person) return;
@@ -426,18 +425,18 @@ const AssignmentScheduler = () => {
 
       const lectoresDisponibles = availableMen.filter(m => m && m.roles && m.roles.lecturaBiblia);
 
-      const lectorSalaA = getNextMatriculado(lectoresDisponibles, usedThisWeekMatriculados);
+      const lectorSalaA = getNextMatriculado(lectoresDisponibles, usedThisWeek);
       if (lectorSalaA) {
         weekAssignments['Sala A Lectura Biblia'] = lectorSalaA.name;
-        usedThisWeekMatriculados.push(lectorSalaA.name);
+        usedThisWeek.push(lectorSalaA.name);
       } else {
         weekAssignments['Sala A Lectura Biblia'] = 'VACANTE';
       }
 
-      const lectorSalaB = getNextMatriculado(lectoresDisponibles, usedThisWeekMatriculados);
+      const lectorSalaB = getNextMatriculado(lectoresDisponibles, usedThisWeek);
       if (lectorSalaB) {
         weekAssignments['Sala B Lectura Biblia'] = lectorSalaB.name;
-        usedThisWeekMatriculados.push(lectorSalaB.name);
+        usedThisWeek.push(lectorSalaB.name);
       } else {
         weekAssignments['Sala B Lectura Biblia'] = 'VACANTE';
       }
@@ -450,11 +449,11 @@ const AssignmentScheduler = () => {
         const assignPair = (sala) => {
           const assignmentKey = `Sala ${sala} Asignacion ${assignmentNum}`;
 
-          const encargado = getNextMatriculado(genderGroup, usedThisWeekMatriculados);
-          if (encargado) usedThisWeekMatriculados.push(encargado.name);
+          const encargado = getNextMatriculado(genderGroup, usedThisWeek);
+          if (encargado) usedThisWeek.push(encargado.name);
 
-          const ayudante = getNextMatriculado(genderGroup, usedThisWeekMatriculados);
-          if (ayudante) usedThisWeekMatriculados.push(ayudante.name);
+          const ayudante = getNextMatriculado(genderGroup, usedThisWeek);
+          if (ayudante) usedThisWeek.push(ayudante.name);
 
           weekAssignments[assignmentKey] = {
             encargado: encargado ? encargado.name : 'VACANTE',
